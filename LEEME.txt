@@ -1,0 +1,12 @@
+STRONG FITNESS ADMIN V2 CORREGIDA
+
+Esta versión agrega el botón RUTINA al listado de miembros.
+Incluye:
+- Crear / editar / activar / desactivar / eliminar rutinas
+- Agregar ejercicios
+- Registrar progreso y medidas
+- Subir fotos y PDF a Supabase Storage
+- Agregar notas del entrenador
+- Logo del panel corregido
+
+Sube este ZIP al MISMO proyecto Admin de Netlify en Deploys.

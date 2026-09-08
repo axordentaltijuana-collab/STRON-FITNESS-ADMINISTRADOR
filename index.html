@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Strong Fitness Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+window.SFT_SUPABASE = {
+  url: "https://wigtjmsuhkrifmfrfohq.supabase.co",
+  key: "sb_publishable_6EFI44BiezDKKNVAkkmfqw_0e4aOJ64"
+};
+</script>
+<style>
+:root{--g:#62ff2e;--bg:#060907;--p:#0d120f;--b:#28352b;--m:#9ca7a0;--r:#ff4f68;--y:#ffd166}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#fff;font-family:Inter,system-ui,Arial}
+.wrap{max-width:1120px;margin:auto;padding:22px}.head{display:flex;align-items:center;gap:12px}.head img{width:72px}.head small{display:block;color:var(--g);letter-spacing:4px}
+.card{background:var(--p);border:1px solid var(--b);border-radius:18px;padding:18px;margin:14px 0}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.n{font-size:28px;font-weight:900}
+button,input,select{border-radius:10px;padding:11px;border:1px solid var(--b)}input,select{background:#0a0f0b;color:white}button{cursor:pointer;font-weight:800}
+.primary{background:var(--g);color:#061008;border:0}.secondary{background:#151d17;color:white}.danger{background:#35131a;color:#ff9bad}
+.row{display:flex;gap:8px;flex-wrap:wrap}.top{display:flex;justify-content:space-between;align-items:center;gap:10px}.muted{color:var(--m)}.green{color:var(--g)}.red{color:var(--r)}.yellow{color:var(--y)}
+table{width:100%;border-collapse:collapse}td,th{padding:10px 6px;border-top:1px solid var(--b);text-align:left;font-size:13px}th{color:var(--m)}
+#app{display:none}.login{max-width:460px;margin:60px auto}.form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
+@media(max-width:700px){.grid{grid-template-columns:1fr 1fr}.form{grid-template-columns:1fr}.full{grid-column:auto}.top{align-items:flex-start;flex-direction:column}}
+
+@media(max-width:700px){
+  body{padding-bottom:env(safe-area-inset-bottom)}
+  .wrap{padding:14px}
+  .head img{width:58px}
+  .head h1{font-size:20px}
+  .grid{grid-template-columns:1fr 1fr}
+  .card{padding:14px;overflow-x:auto}
+  table{min-width:650px}
+  .top{gap:10px}
+  button,input,select{font-size:16px}
+}
+
+.modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;overflow:auto;padding:18px}
+.modalPanel{max-width:1000px;margin:18px auto;background:#08100b;border:1px solid var(--b);border-radius:20px;padding:18px}
+.toolTabs{margin:16px 0}
+.innerCard{background:#0a120d;margin:10px 0}
+textarea{width:100%;min-height:90px;border-radius:10px;padding:11px;border:1px solid var(--b);background:#0a0f0b;color:white;resize:vertical}
+.routineBox{background:#0d120f;border:1px solid var(--b);border-radius:16px;padding:14px;margin:12px 0}
+.exerciseGrid{display:grid;grid-template-columns:1.2fr .8fr .55fr .65fr .7fr 1fr auto;gap:7px;margin-top:10px;align-items:center}
+.exerciseGrid input{width:100%}
+.smallMuted{font-size:12px;color:var(--m)}
+@media(max-width:700px){
+  .modalOverlay{padding:7px}
+  .modalPanel{margin:4px auto;padding:12px}
+  .exerciseGrid{grid-template-columns:1fr 1fr}
+}
+
+</style>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=admin1">
+<link rel="apple-touch-icon-precomposed" sizes="180x180" href="/apple-touch-icon-precomposed.png?v=admin1">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=admin1">
+<link rel="manifest" href="/manifest.webmanifest?v=admin1">
+<meta name="theme-color" content="#060907">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Strong Admin">
+
+</head>
+<body>
+<div class="wrap">
+<div class="head"><img src="logo.png"><div><h1 style="margin:0">Strong Fitness Training</h1><small>ADMIN · CLOUD</small></div></div>
+
+<div id="login" class="card login">
+<h2>Administrador</h2>
+<p class="muted">Inicia sesión con el usuario administrador de Supabase.</p>
+<input id="email" placeholder="Correo" style="width:100%;margin:6px 0">
+<input id="password" type="password" placeholder="Contraseña" style="width:100%;margin:6px 0">
+<button class="primary" onclick="signIn()" style="width:100%;margin-top:8px">Entrar</button>
+<div id="loginMsg" class="muted" style="margin-top:10px"></div>
+</div>
+
+<div id="app">
+<div class="top"><div><h2>Panel administrador</h2><p class="muted">Datos sincronizados con Supabase</p></div><div class="row"><button class="primary" onclick="showNew()">+ Nuevo miembro</button><button class="secondary" onclick="signOut()">Cerrar sesión</button></div></div>
+<div class="grid">
+<div class="card"><div class="muted">Miembros</div><div class="n" id="kTotal">0</div></div>
+<div class="card"><div class="muted">Activos</div><div class="n green" id="kActive">0</div></div>
+<div class="card"><div class="muted">Vencidos</div><div class="n red" id="kExpired">0</div></div>
+<div class="card"><div class="muted">Ingresos mes</div><div class="n yellow" id="kIncome">$0</div></div>
+</div>
+
+<div class="card" id="newBox" style="display:none">
+<h3>Nuevo miembro</h3>
+<div class="form">
+<input id="name" class="full" placeholder="Nombre completo">
+<input id="phone" placeholder="Teléfono">
+<select id="plan"><option>Mensual</option><option>Quincenal</option><option>Semanal</option><option>Trimestral</option><option>Anual</option></select>
+<input id="amount" type="number" placeholder="Costo">
+<input id="expiry" type="date">
+<div class="row full"><button class="primary" onclick="createMember()">Guardar</button><button class="secondary" onclick="hideNew()">Cancelar</button></div>
+</div>
+</div>
+
+<div class="card"><div class="top"><h3>Miembros</h3><button class="secondary" onclick="loadAll()">Actualizar</button></div><div id="members"></div></div>
+<div class="card"><h3>Pagos recientes</h3><div id="payments"></div></div>
+<div class="card"><h3>Asistencias recientes</h3><div id="checkins"></div></div>
+<div id="msg" class="muted"></div>
+</div>
+</div>
+
+
+<div id="memberToolsModal" class="modalOverlay" style="display:none">
+  <div class="modalPanel">
+    <div class="top">
+      <div>
+        <h2 id="memberToolsTitle" style="margin:0">Entrenamiento</h2>
+        <p class="muted" style="margin:4px 0 0">Rutinas, progreso, archivos y notas</p>
+      </div>
+      <button class="secondary" onclick="closeMemberTools()">Cerrar</button>
+    </div>
+
+    <div class="row toolTabs">
+      <button class="secondary" onclick="showToolTab('routines')">Rutinas</button>
+      <button class="secondary" onclick="showToolTab('progress')">Progreso</button>
+      <button class="secondary" onclick="showToolTab('files')">Fotos / archivos</button>
+      <button class="secondary" onclick="showToolTab('notes')">Notas</button>
+    </div>
+
+    <div id="tool-routines" class="toolTab">
+      <div class="card innerCard">
+        <h3>Nueva rutina</h3>
+        <div class="form">
+          <input id="routineTitle" class="full" placeholder="Nombre de la rutina">
+          <input id="routineObjective" class="full" placeholder="Objetivo">
+          <input id="routineStart" type="date">
+          <input id="routineEnd" type="date">
+          <textarea id="routineInstructions" class="full" placeholder="Indicaciones generales"></textarea>
+        </div>
+        <button class="primary" onclick="saveRoutine()">Guardar rutina</button>
+      </div>
+      <div id="routineList"></div>
+    </div>
+
+    <div id="tool-progress" class="toolTab" style="display:none">
+      <div class="card innerCard">
+        <h3>Registrar progreso</h3>
+        <div class="form">
+          <input id="progressDate" type="date" title="Fecha de medición">
+          <input id="progressWeight" type="number" step="0.01" placeholder="Peso actual (kg)">
+          <input id="progressHeight" type="number" step="0.1" placeholder="Estatura (cm)">
+          <input id="progressBmiPreview" readonly placeholder="IMC automático">
+          <input id="progressGoal" type="number" step="0.01" placeholder="Peso meta (kg)">
+          <input id="progressIdeal" type="number" step="0.01" placeholder="Peso ideal estimado (kg)">
+          <input id="progressFat" type="number" step="0.01" placeholder="% grasa corporal">
+          <input id="progressWaist" type="number" step="0.01" placeholder="Cintura (cm)">
+          <input id="progressChest" type="number" step="0.01" placeholder="Pecho (cm)">
+          <input id="progressArm" type="number" step="0.01" placeholder="Brazo (cm)">
+          <input id="progressLeg" type="number" step="0.01" placeholder="Pierna (cm)">
+          <textarea id="progressNotes" class="full" placeholder="Meta / observaciones del entrenador"></textarea>
+        </div>
+        <div class="row"><button class="primary" onclick="saveProgress()">Guardar medición</button></div>
+      </div>
+      <div id="progressList"></div>
+    </div>
+
+    <div id="tool-files" class="toolTab" style="display:none">
+      <div class="card innerCard">
+        <h3>Subir foto o archivo</h3>
+        <input id="uploadTitle" placeholder="Título" style="width:100%;margin:5px 0">
+        <input id="uploadFile" type="file" accept="image/*,.pdf" style="width:100%;margin:5px 0">
+        <textarea id="uploadDescription" placeholder="Descripción"></textarea>
+        <button class="primary" onclick="uploadMemberFile()">Subir</button>
+      </div>
+      <div id="fileList"></div>
+    </div>
+
+    <div id="tool-notes" class="toolTab" style="display:none">
+      <div class="card innerCard">
+        <h3>Nueva nota del entrenador</h3>
+        <textarea id="trainerNote" placeholder="Escribe la nota"></textarea>
+        <label style="display:block;margin:10px 0">
+          <input id="trainerNoteVisible" type="checkbox" checked> Visible para el socio
+        </label>
+        <button class="primary" onclick="saveTrainerNote()">Guardar nota</button>
+      </div>
+      <div id="noteList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const sb = supabase.createClient(window.SFT_SUPABASE.url, window.SFT_SUPABASE.key);
+const $=q=>document.querySelector(q);
+let MEMBERS=[], PAYMENTS=[], CHECKINS=[];
+function money(n){return '$'+Number(n||0).toLocaleString('es-MX')}
+function expired(m){return new Date(m.expiry_date+'T23:59:59')<new Date()}
+function nextCode(){
+ let max=MEMBERS.reduce((a,m)=>Math.max(a,Number((m.member_code||'').replace(/\D/g,''))||0),0);
+ return 'SFT-'+String(max+1).padStart(4,'0')
+}
+async function signIn(){
+ $('#loginMsg').textContent='Entrando...';
+ const {error}=await sb.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});
+ if(error){$('#loginMsg').textContent=error.message;return}
+ await boot();
+}
+async function signOut(){await sb.auth.signOut();location.reload()}
+async function boot(){
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session){$('#login').style.display='block';$('#app').style.display='none';return}
+ const {data:admin,error}=await sb.from('admin_users').select('user_id').eq('user_id',session.user.id).maybeSingle();
+ if(error || !admin){$('#loginMsg').textContent='Este usuario existe, pero todavía no está registrado como administrador.';await sb.auth.signOut();return}
+ $('#login').style.display='none';$('#app').style.display='block';await loadAll();
+}
+async function loadAll(){
+ $('#msg').textContent='Sincronizando...';
+ let [m,p,c]=await Promise.all([
+   sb.from('members').select('*').order('created_at',{ascending:false}),
+   sb.from('payments').select('*,members(full_name,member_code)').order('payment_date',{ascending:false}).limit(30),
+   sb.from('checkins').select('*,members(full_name,member_code)').order('checkin_time',{ascending:false}).limit(30)
+ ]);
+ if(m.error||p.error||c.error){$('#msg').textContent=(m.error||p.error||c.error).message;return}
+ MEMBERS=m.data||[];PAYMENTS=p.data||[];CHECKINS=c.data||[];render();$('#msg').textContent='Sincronizado ✓'
+}
+function render(){
+ $('#kTotal').textContent=MEMBERS.length;$('#kActive').textContent=MEMBERS.filter(x=>!expired(x)).length;$('#kExpired').textContent=MEMBERS.filter(expired).length;
+ let now=new Date(), inc=PAYMENTS.filter(x=>{let d=new Date(x.payment_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()}).reduce((a,x)=>a+Number(x.amount),0);$('#kIncome').textContent=money(inc);
+ $('#members').innerHTML=MEMBERS.length?'<table><tr><th>ID</th><th>Nombre</th><th>Plan</th><th>Vence</th><th>Acciones</th></tr>'+MEMBERS.map((m,i)=>`<tr><td>${m.member_code}</td><td>${m.full_name}<br><span class="muted">${m.phone||''}</span></td><td>${m.plan}</td><td class="${expired(m)?'red':'green'}">${m.expiry_date}</td><td><div class="row"><button class="secondary" onclick="pay(${i})">Pago</button><button class="secondary" onclick="checkin(${i})">Entrada</button><button class="primary" onclick="openMemberTools(${i})">Entrenamiento</button><button class="danger" onclick="removeMember(${i})">Eliminar</button></div></td></tr>`).join('')+'</table>':'<span class="muted">Sin miembros.</span>';
+ $('#payments').innerHTML=PAYMENTS.length?'<table><tr><th>Fecha</th><th>Miembro</th><th>Monto</th></tr>'+PAYMENTS.map(x=>`<tr><td>${new Date(x.payment_date).toLocaleString('es-MX')}</td><td>${x.members?.full_name||''}</td><td>${money(x.amount)}</td></tr>`).join('')+'</table>':'<span class="muted">Sin pagos.</span>';
+ $('#checkins').innerHTML=CHECKINS.length?'<table><tr><th>Fecha</th><th>Miembro</th></tr>'+CHECKINS.map(x=>`<tr><td>${new Date(x.checkin_time).toLocaleString('es-MX')}</td><td>${x.members?.full_name||''}</td></tr>`).join('')+'</table>':'<span class="muted">Sin asistencias.</span>';
+}
+function showNew(){$('#newBox').style.display='block'} function hideNew(){$('#newBox').style.display='none'}
+async function createMember(){
+ let row={member_code:nextCode(),full_name:$('#name').value.trim(),phone:$('#phone').value.trim(),plan:$('#plan').value,amount:Number($('#amount').value||0),expiry_date:$('#expiry').value};
+ if(!row.full_name||!row.expiry_date)return alert('Falta nombre o vencimiento.');
+ let {error}=await sb.from('members').insert(row);if(error)return alert(error.message);
+ ['name','phone','amount','expiry'].forEach(id=>$('#'+id).value='');hideNew();await loadAll()
+}
+async function pay(i){
+ let m=MEMBERS[i], amt=prompt('Monto recibido de '+m.full_name+':',m.amount);if(amt===null)return;
+ let n=Number(amt);if(!n)return;
+ let base=expired(m)?new Date():new Date(m.expiry_date+'T12:00:00');
+ if(m.plan==='Semanal')base.setDate(base.getDate()+7);else if(m.plan==='Quincenal')base.setDate(base.getDate()+15);else if(m.plan==='Trimestral')base.setMonth(base.getMonth()+3);else if(m.plan==='Anual')base.setFullYear(base.getFullYear()+1);else base.setMonth(base.getMonth()+1);
+ let newDate=base.toISOString().slice(0,10);
+ let r=await sb.from('payments').insert({member_id:m.id,amount:n,description:'Renovación '+m.plan});if(r.error)return alert(r.error.message);
+ r=await sb.from('members').update({expiry_date:newDate}).eq('id',m.id);if(r.error)return alert(r.error.message);
+ await loadAll();alert('Pago registrado. Nueva fecha: '+newDate)
+}
+async function checkin(i){
+ let m=MEMBERS[i];if(expired(m))return alert('⛔ Membresía vencida');
+ let {error}=await sb.from('checkins').insert({member_id:m.id});if(error)return alert(error.message);
+ await loadAll();alert('✅ Entrada registrada')
+}
+async function removeMember(i){
+ let m=MEMBERS[i];if(!confirm('¿Eliminar a '+m.full_name+'?'))return;
+ let {error}=await sb.from('members').delete().eq('id',m.id);if(error)return alert(error.message);await loadAll()
+}
+
+let CURRENT_MEMBER = null;
+
+function escHtml(v){
+  return String(v ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+async function openMemberTools(i){
+  CURRENT_MEMBER = MEMBERS[i];
+  $('#memberToolsTitle').textContent = 'Entrenamiento · ' + CURRENT_MEMBER.full_name;
+  $('#memberToolsModal').style.display = 'block';
+  $('#routineStart').value = new Date().toISOString().slice(0,10);
+  $('#progressDate').value = new Date().toISOString().slice(0,10);
+  $('#progressDate').value = new Date().toISOString().slice(0,10);
+  showToolTab('routines');
+}
+function closeMemberTools(){
+  $('#memberToolsModal').style.display='none';
+}
+function showToolTab(name){
+  document.querySelectorAll('.toolTab').forEach(x=>x.style.display='none');
+  $('#tool-'+name).style.display='block';
+  if(name==='routines') loadRoutines();
+  if(name==='progress') loadProgress();
+  if(name==='files') loadFiles();
+  if(name==='notes') loadTrainerNotes();
+}
+
+async function saveRoutine(){
+  if(!CURRENT_MEMBER) return;
+  const title=$('#routineTitle').value.trim();
+  if(!title) return alert('Escribe el nombre de la rutina.');
+  const row={
+    member_id:CURRENT_MEMBER.id,
+    title,
+    objective:$('#routineObjective').value.trim()||null,
+    instructions:$('#routineInstructions').value.trim()||null,
+    start_date:$('#routineStart').value||null,
+    end_date:$('#routineEnd').value||null,
+    is_active:true
+  };
+  const {error}=await sb.from('workout_routines').insert(row);
+  if(error) return alert(error.message);
+  $('#routineTitle').value='';
+  $('#routineObjective').value='';
+  $('#routineInstructions').value='';
+  $('#routineEnd').value='';
+  await loadRoutines();
+  alert('✅ Rutina guardada');
+}
+
+async function loadRoutines(){
+  if(!CURRENT_MEMBER) return;
+  const {data:routines,error}=await sb.from('workout_routines')
+    .select('*').eq('member_id',CURRENT_MEMBER.id).order('created_at',{ascending:false});
+  if(error){ $('#routineList').innerHTML='<div class="card red">'+escHtml(error.message)+'</div>'; return; }
+  if(!routines?.length){ $('#routineList').innerHTML='<div class="card muted">Todavía no hay rutinas.</div>'; return; }
+
+  let htmlOut='';
+  for(const r of routines){
+    const {data:exercises}=await sb.from('workout_exercises')
+      .select('*').eq('routine_id',r.id).order('exercise_order',{ascending:true});
+    htmlOut += `
+      <div class="routineBox">
+        <div class="top">
+          <div>
+            <h3 style="margin:0">${escHtml(r.title)}</h3>
+            <div class="smallMuted">${r.is_active?'ACTIVA':'INACTIVA'} ${r.start_date?'· '+r.start_date:''} ${r.end_date?'→ '+r.end_date:''}</div>
+          </div>
+          <div class="row">
+            <button class="secondary" onclick="editRoutine('${r.id}')">Editar</button>
+            <button class="secondary" onclick="toggleRoutine('${r.id}',${!r.is_active})">${r.is_active?'Desactivar':'Activar'}</button>
+            <button class="danger" onclick="deleteRoutine('${r.id}')">Eliminar</button>
+          </div>
+        </div>
+        <p><b>Objetivo:</b> ${escHtml(r.objective||'')}</p>
+        <p>${escHtml(r.instructions||'')}</p>
+        <div>
+          ${(exercises||[]).map(x=>`
+            <div class="card innerCard">
+              <b>${escHtml(x.exercise_name)}</b>
+              <div class="smallMuted">${escHtml(x.day_name||'')} · ${x.sets||'-'} series · ${escHtml(x.reps||'-')} reps · ${escHtml(x.weight||'')}</div>
+              <div>${escHtml(x.notes||'')}</div>
+            </div>`).join('') || '<div class="muted">Sin ejercicios todavía.</div>'}
+        </div>
+        <div class="exerciseGrid">
+          <input id="exName-${r.id}" placeholder="Ejercicio">
+          <input id="exDay-${r.id}" placeholder="Día">
+          <input id="exSets-${r.id}" type="number" placeholder="Series">
+          <input id="exReps-${r.id}" placeholder="Reps">
+          <input id="exWeight-${r.id}" placeholder="Peso">
+          <input id="exNotes-${r.id}" placeholder="Notas">
+          <button class="primary" onclick="addExercise('${r.id}')">+ Ejercicio</button>
+        </div>
+      </div>`;
+  }
+  $('#routineList').innerHTML=htmlOut;
+}
+
+async function addExercise(routineId){
+  const name=$('#exName-'+routineId).value.trim();
+  if(!name) return alert('Escribe el nombre del ejercicio.');
+  const row={
+    routine_id:routineId,
+    exercise_name:name,
+    day_name:$('#exDay-'+routineId).value.trim()||null,
+    sets:Number($('#exSets-'+routineId).value)||null,
+    reps:$('#exReps-'+routineId).value.trim()||null,
+    weight:$('#exWeight-'+routineId).value.trim()||null,
+    notes:$('#exNotes-'+routineId).value.trim()||null
+  };
+  const {error}=await sb.from('workout_exercises').insert(row);
+  if(error) return alert(error.message);
+  await loadRoutines();
+}
+
+async function editRoutine(id){
+  const {data:r,error}=await sb.from('workout_routines').select('*').eq('id',id).single();
+  if(error) return alert(error.message);
+  const title=prompt('Nombre de la rutina:',r.title); if(title===null)return;
+  const objective=prompt('Objetivo:',r.objective||''); if(objective===null)return;
+  const instructions=prompt('Indicaciones:',r.instructions||''); if(instructions===null)return;
+  const res=await sb.from('workout_routines').update({title,objective,instructions}).eq('id',id);
+  if(res.error) return alert(res.error.message);
+  await loadRoutines();
+}
+async function toggleRoutine(id,value){
+  const {error}=await sb.from('workout_routines').update({is_active:value}).eq('id',id);
+  if(error)return alert(error.message);
+  await loadRoutines();
+}
+async function deleteRoutine(id){
+  if(!confirm('¿Eliminar esta rutina y todos sus ejercicios?'))return;
+  const {error}=await sb.from('workout_routines').delete().eq('id',id);
+  if(error)return alert(error.message);
+  await loadRoutines();
+}
+
+function progressNum(id){
+  const el=$('#'+id); return el && el.value!=='' ? Number(el.value) : null;
+}
+function calcBmiPreview(){
+  const w=progressNum('progressWeight'), h=progressNum('progressHeight');
+  const out=$('#progressBmiPreview');
+  if(!out)return;
+  out.value=(w&&h) ? (w/Math.pow(h/100,2)).toFixed(1) : '';
+}
+document.addEventListener('input',e=>{
+  if(e.target?.id==='progressWeight'||e.target?.id==='progressHeight') calcBmiPreview();
+});
+
+async function saveProgress(){
+  if(!CURRENT_MEMBER)return;
+  const row={
+    member_id:CURRENT_MEMBER.id,
+    record_date:$('#progressDate').value||new Date().toISOString().slice(0,10),
+    weight_kg:progressNum('progressWeight'),
+    height_cm:progressNum('progressHeight'),
+    goal_weight_kg:progressNum('progressGoal'),
+    ideal_weight_kg:progressNum('progressIdeal'),
+    body_fat_pct:progressNum('progressFat'),
+    waist_cm:progressNum('progressWaist'),
+    chest_cm:progressNum('progressChest'),
+    arm_cm:progressNum('progressArm'),
+    leg_cm:progressNum('progressLeg'),
+    goal_notes:$('#progressNotes').value.trim()||null
+  };
+  if(!row.weight_kg && !row.height_cm && !row.goal_weight_kg && !row.body_fat_pct)
+    return alert('Captura por lo menos un dato de progreso.');
+  const {error}=await sb.from('member_progress').insert(row);
+  if(error)return alert('No se pudo guardar: '+error.message);
+  ['progressWeight','progressHeight','progressBmiPreview','progressGoal','progressIdeal','progressFat','progressWaist','progressChest','progressArm','progressLeg','progressNotes'].forEach(id=>{const e=$('#'+id);if(e)e.value=''});
+  $('#progressDate').value=new Date().toISOString().slice(0,10);
+  await loadProgress();
+  alert('✅ Medición guardada. Ya puede verla el socio en Progreso.');
+}
+function bmiClass(v){
+  const n=Number(v); if(!n)return '';
+  if(n<18.5)return 'Bajo'; if(n<25)return 'Normal'; if(n<30)return 'Sobrepeso'; return 'Alto';
+}
+async function deleteProgress(id){
+  if(!confirm('¿Eliminar esta medición?'))return;
+  const {error}=await sb.from('member_progress').delete().eq('id',id);
+  if(error)return alert(error.message);
+  await loadProgress();
+}
+async function loadProgress(){
+  const {data,error}=await sb.from('member_progress')
+    .select('*').eq('member_id',CURRENT_MEMBER.id).order('record_date',{ascending:false});
+  if(error){$('#progressList').innerHTML='<div class="card red">'+escHtml(error.message)+'</div>';return}
+  const rows=data||[];
+  if(!rows.length){$('#progressList').innerHTML='<div class="card muted">Sin mediciones registradas.</div>';return}
+  const latest=rows[0];
+  const bmi=latest.bmi ?? ((latest.weight_kg&&latest.height_cm)?(latest.weight_kg/Math.pow(latest.height_cm/100,2)).toFixed(1):null);
+  $('#progressList').innerHTML=`
+    <div class="card innerCard">
+      <h3 style="margin-top:0">Resumen actual</h3>
+      <div class="form">
+        <div><span class="muted">Peso actual</span><br><b>${latest.weight_kg??'—'} kg</b></div>
+        <div><span class="muted">Estatura</span><br><b>${latest.height_cm??'—'} cm</b></div>
+        <div><span class="muted">IMC</span><br><b>${bmi??'—'} ${bmi?'· '+bmiClass(bmi):''}</b></div>
+        <div><span class="muted">Peso meta</span><br><b>${latest.goal_weight_kg??'—'} kg</b></div>
+        <div><span class="muted">Peso ideal</span><br><b>${latest.ideal_weight_kg??'—'} kg</b></div>
+        <div><span class="muted">Grasa corporal</span><br><b>${latest.body_fat_pct??'—'}%</b></div>
+      </div>
+    </div>
+    <div class="card innerCard" style="overflow-x:auto">
+      <h3>Historial de mediciones</h3>
+      <table><tr><th>Fecha</th><th>Peso</th><th>IMC</th><th>% grasa</th><th>Cintura</th><th>Pecho</th><th>Brazo</th><th>Pierna</th><th>Acción</th></tr>
+      ${rows.map(p=>{const b=p.bmi??((p.weight_kg&&p.height_cm)?(p.weight_kg/Math.pow(p.height_cm/100,2)).toFixed(1):'—');return `<tr><td>${p.record_date||''}</td><td>${p.weight_kg??'—'}</td><td>${b??'—'}</td><td>${p.body_fat_pct??'—'}</td><td>${p.waist_cm??'—'}</td><td>${p.chest_cm??'—'}</td><td>${p.arm_cm??'—'}</td><td>${p.leg_cm??'—'}</td><td><button class="danger" onclick="deleteProgress('${p.id}')">Eliminar</button></td></tr>`}).join('')}
+      </table>
+      ${latest.goal_notes?`<p><b>Meta / observaciones:</b> ${escHtml(latest.goal_notes)}</p>`:''}
+    </div>`;
+}
+
+async function saveTrainerNote(){
+  const note=$('#trainerNote').value.trim();
+  if(!note)return alert('Escribe una nota.');
+  const {error}=await sb.from('trainer_notes').insert({
+    member_id:CURRENT_MEMBER.id,
+    note,
+    visible_to_member:$('#trainerNoteVisible').checked
+  });
+  if(error)return alert(error.message);
+  $('#trainerNote').value='';
+  await loadTrainerNotes();
+  alert('✅ Nota guardada');
+}
+async function loadTrainerNotes(){
+  const {data,error}=await sb.from('trainer_notes')
+    .select('*').eq('member_id',CURRENT_MEMBER.id).order('created_at',{ascending:false});
+  if(error){$('#noteList').textContent=error.message;return}
+  $('#noteList').innerHTML=(data||[]).map(n=>`
+    <div class="card innerCard">
+      ${escHtml(n.note)}
+      <div class="smallMuted">${n.visible_to_member?'Visible para el socio':'Privada'}</div>
+    </div>`).join('') || '<div class="card muted">Sin notas.</div>';
+}
+
+async function uploadMemberFile(){
+  const file=$('#uploadFile').files[0];
+  if(!file)return alert('Selecciona una foto o PDF.');
+  const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path=CURRENT_MEMBER.id+'/'+Date.now()+'_'+safe;
+
+  const up=await sb.storage.from('member-files').upload(path,file,{upsert:false,contentType:file.type||undefined});
+  if(up.error)return alert(up.error.message);
+
+  const ins=await sb.from('member_files').insert({
+    member_id:CURRENT_MEMBER.id,
+    file_type:file.type.startsWith('image/')?'photo':'document',
+    title:$('#uploadTitle').value.trim()||file.name,
+    file_path:path,
+    description:$('#uploadDescription').value.trim()||null,
+    visible_to_member:true
+  });
+  if(ins.error)return alert(ins.error.message);
+
+  $('#uploadTitle').value='';
+  $('#uploadDescription').value='';
+  $('#uploadFile').value='';
+  await loadFiles();
+  alert('✅ Archivo subido');
+}
+async function loadFiles(){
+  const {data,error}=await sb.from('member_files')
+    .select('*').eq('member_id',CURRENT_MEMBER.id).order('created_at',{ascending:false});
+  if(error){$('#fileList').textContent=error.message;return}
+  $('#fileList').innerHTML=(data||[]).map(f=>`
+    <div class="card innerCard">
+      <b>${escHtml(f.title||f.file_path)}</b>
+      <div class="smallMuted">${escHtml(f.file_type)} · ${f.visible_to_member?'Visible':'Privado'}</div>
+      <div>${escHtml(f.description||'')}</div>
+    </div>`).join('') || '<div class="card muted">Sin fotos o archivos.</div>';
+}
+
+boot();
+</script>
+</body></html>
