@@ -301,7 +301,7 @@ async function callAccessFunction(payload){
   const {data:{session}} = await sb.auth.getSession();
   if(!session) throw new Error('La sesión de administrador expiró.');
 
-  const {data, error} = await sb.functions.invoke('member-access', {
+  const {data, error} = await sb.functions.invoke('member-acces ', {
     body: payload
   });
 
