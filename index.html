@@ -103,6 +103,34 @@ textarea{width:100%;min-height:90px;border-radius:10px;padding:11px;border:1px s
 </div>
 
 
+
+<div id="accessModal" class="modalOverlay" style="display:none">
+  <div class="modalPanel" style="max-width:560px">
+    <div class="top">
+      <div>
+        <h2 id="accessTitle" style="margin:0">Acceso del socio</h2>
+        <p class="muted" style="margin:4px 0 0">Crea, bloquea o reactiva el acceso a la App de Socios.</p>
+      </div>
+      <button class="secondary" onclick="closeAccessModal()">Cerrar</button>
+    </div>
+    <div id="accessCreateBox" class="card innerCard">
+      <h3>Crear acceso</h3>
+      <input id="accessEmail" type="email" placeholder="Correo del socio" style="width:100%;margin:5px 0">
+      <input id="accessPassword" type="text" placeholder="Contraseña temporal (mínimo 8 caracteres)" style="width:100%;margin:5px 0">
+      <p class="smallMuted">Entrégale este correo y contraseña al socio. La contraseña no se guarda en la ficha del gimnasio.</p>
+      <button class="primary" onclick="createMemberAccess()">Crear acceso</button>
+    </div>
+    <div id="accessExistingBox" class="card innerCard" style="display:none">
+      <div class="green" style="font-weight:800;margin-bottom:12px">Acceso creado</div>
+      <div class="row">
+        <button class="danger" onclick="setMemberAccess(false)">Bloquear acceso</button>
+        <button class="primary" onclick="setMemberAccess(true)">Reactivar acceso</button>
+      </div>
+      <p class="smallMuted">Bloquear no elimina al socio ni su historial, pagos, rutinas o progreso.</p>
+    </div>
+  </div>
+</div>
+
 <div id="memberToolsModal" class="modalOverlay" style="display:none">
   <div class="modalPanel">
     <div class="top">
@@ -219,7 +247,7 @@ async function loadAll(){
 function render(){
  $('#kTotal').textContent=MEMBERS.length;$('#kActive').textContent=MEMBERS.filter(x=>!expired(x)).length;$('#kExpired').textContent=MEMBERS.filter(expired).length;
  let now=new Date(), inc=PAYMENTS.filter(x=>{let d=new Date(x.payment_date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()}).reduce((a,x)=>a+Number(x.amount),0);$('#kIncome').textContent=money(inc);
- $('#members').innerHTML=MEMBERS.length?'<table><tr><th>ID</th><th>Nombre</th><th>Plan</th><th>Vence</th><th>Acciones</th></tr>'+MEMBERS.map((m,i)=>`<tr><td>${m.member_code}</td><td>${m.full_name}<br><span class="muted">${m.phone||''}</span></td><td>${m.plan}</td><td class="${expired(m)?'red':'green'}">${m.expiry_date}</td><td><div class="row"><button class="secondary" onclick="pay(${i})">Pago</button><button class="secondary" onclick="checkin(${i})">Entrada</button><button class="primary" onclick="openMemberTools(${i})">Entrenamiento</button><button class="danger" onclick="removeMember(${i})">Eliminar</button></div></td></tr>`).join('')+'</table>':'<span class="muted">Sin miembros.</span>';
+ $('#members').innerHTML=MEMBERS.length?'<table><tr><th>ID</th><th>Nombre</th><th>Plan</th><th>Vence</th><th>Acciones</th></tr>'+MEMBERS.map((m,i)=>`<tr><td>${m.member_code}</td><td>${m.full_name}<br><span class="muted">${m.phone||''}</span></td><td>${m.plan}</td><td class="${expired(m)?'red':'green'}">${m.expiry_date}</td><td><div class="row"><button class="secondary" onclick="pay(${i})">Pago</button><button class="secondary" onclick="checkin(${i})">Entrada</button><button class="primary" onclick="openMemberTools(${i})">Entrenamiento</button><button class="secondary" onclick="openAccess(${i})">${m.auth_user_id?'Acceso':'Crear acceso'}</button><button class="danger" onclick="removeMember(${i})">Eliminar</button></div></td></tr>`).join('')+'</table>':'<span class="muted">Sin miembros.</span>';
  $('#payments').innerHTML=PAYMENTS.length?'<table><tr><th>Fecha</th><th>Miembro</th><th>Monto</th></tr>'+PAYMENTS.map(x=>`<tr><td>${new Date(x.payment_date).toLocaleString('es-MX')}</td><td>${x.members?.full_name||''}</td><td>${money(x.amount)}</td></tr>`).join('')+'</table>':'<span class="muted">Sin pagos.</span>';
  $('#checkins').innerHTML=CHECKINS.length?'<table><tr><th>Fecha</th><th>Miembro</th></tr>'+CHECKINS.map(x=>`<tr><td>${new Date(x.checkin_time).toLocaleString('es-MX')}</td><td>${x.members?.full_name||''}</td></tr>`).join('')+'</table>':'<span class="muted">Sin asistencias.</span>';
 }
@@ -248,6 +276,75 @@ async function checkin(i){
 async function removeMember(i){
  let m=MEMBERS[i];if(!confirm('¿Eliminar a '+m.full_name+'?'))return;
  let {error}=await sb.from('members').delete().eq('id',m.id);if(error)return alert(error.message);await loadAll()
+}
+
+
+let ACCESS_MEMBER = null;
+
+function closeAccessModal(){
+  $('#accessModal').style.display='none';
+  ACCESS_MEMBER=null;
+}
+
+function openAccess(i){
+  ACCESS_MEMBER=MEMBERS[i];
+  $('#accessTitle').textContent='Acceso · '+ACCESS_MEMBER.full_name;
+  const hasAccess=!!ACCESS_MEMBER.auth_user_id;
+  $('#accessCreateBox').style.display=hasAccess?'none':'block';
+  $('#accessExistingBox').style.display=hasAccess?'block':'none';
+  $('#accessEmail').value='';
+  $('#accessPassword').value='';
+  $('#accessModal').style.display='block';
+}
+
+async function callAccessFunction(payload){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session) throw new Error('La sesión de administrador expiró.');
+  const res=await fetch(window.SFT_SUPABASE.url+'/functions/v1/member-access',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':'Bearer '+session.access_token,
+      'apikey':window.SFT_SUPABASE.key
+    },
+    body:JSON.stringify(payload)
+  });
+  const body=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(body.error||body.message||'No se pudo completar la operación.');
+  return body;
+}
+
+async function createMemberAccess(){
+  if(!ACCESS_MEMBER)return;
+  const email=$('#accessEmail').value.trim().toLowerCase();
+  const password=$('#accessPassword').value;
+  if(!email || !email.includes('@')) return alert('Escribe un correo válido.');
+  if(!password || password.length<8) return alert('La contraseña debe tener al menos 8 caracteres.');
+  if(!confirm('¿Crear acceso para '+ACCESS_MEMBER.full_name+' con '+email+'?')) return;
+
+  try{
+    await callAccessFunction({action:'create',member_id:ACCESS_MEMBER.id,email,password});
+    alert('✅ Acceso creado.\\n\\nCorreo: '+email+'\\nContraseña temporal: '+password+'\\n\\nEntrégale estos datos al socio.');
+    closeAccessModal();
+    await loadAll();
+  }catch(e){
+    alert('No se pudo crear el acceso: '+e.message);
+  }
+}
+
+async function setMemberAccess(enable){
+  if(!ACCESS_MEMBER || !ACCESS_MEMBER.auth_user_id)return;
+  const action=enable?'unblock':'block';
+  const verb=enable?'reactivar':'bloquear';
+  if(!confirm('¿'+verb.charAt(0).toUpperCase()+verb.slice(1)+' el acceso de '+ACCESS_MEMBER.full_name+'?'))return;
+  try{
+    await callAccessFunction({action,member_id:ACCESS_MEMBER.id});
+    alert(enable?'✅ Acceso reactivado':'⛔ Acceso bloqueado');
+    closeAccessModal();
+    await loadAll();
+  }catch(e){
+    alert('No se pudo '+verb+' el acceso: '+e.message);
+  }
 }
 
 let CURRENT_MEMBER = null;
