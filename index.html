@@ -298,20 +298,17 @@ function openAccess(i){
 }
 
 async function callAccessFunction(payload){
-  const {data:{session}}=await sb.auth.getSession();
+  const {data:{session}} = await sb.auth.getSession();
   if(!session) throw new Error('La sesión de administrador expiró.');
-  const res=await fetch(window.SFT_SUPABASE.url+'/functions/v1/member-access',{
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'Authorization':'Bearer '+session.access_token,
-      'apikey':window.SFT_SUPABASE.key
-    },
-    body:JSON.stringify(payload)
+
+  const {data, error} = await sb.functions.invoke('member-access', {
+    body: payload
   });
-  const body=await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(body.error||body.message||'No se pudo completar la operación.');
-  return body;
+
+  if(error) throw new Error(error.message || 'No se pudo completar la operación.');
+  if(data?.error) throw new Error(data.error);
+
+  return data;
 }
 
 async function createMemberAccess(){
