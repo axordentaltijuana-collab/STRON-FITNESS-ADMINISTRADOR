@@ -141,7 +141,7 @@ textarea{width:100%;min-height:90px;border-radius:10px;padding:11px;border:1px s
         <div class="form">
           <input id="progressDate" type="date" title="Fecha de medición">
           <input id="progressWeight" type="number" step="0.01" placeholder="Peso actual (kg)">
-          <input id="progressHeight" type="number" step="0.1" placeholder="Estatura (cm)">
+          <input id="progressHeight" type="number" step="0.1" placeholder="Estatura (cm o m, ej. 178 o 1.78)">
           <input id="progressBmiPreview" readonly placeholder="IMC automático">
           <input id="progressGoal" type="number" step="0.01" placeholder="Peso meta (kg)">
           <input id="progressIdeal" type="number" step="0.01" placeholder="Peso ideal estimado (kg)">
@@ -152,7 +152,7 @@ textarea{width:100%;min-height:90px;border-radius:10px;padding:11px;border:1px s
           <input id="progressLeg" type="number" step="0.01" placeholder="Pierna (cm)">
           <textarea id="progressNotes" class="full" placeholder="Meta / observaciones del entrenador"></textarea>
         </div>
-        <div class="row"><button class="primary" onclick="saveProgress()">Guardar medición</button></div>
+        <div class="muted" style="margin:8px 0 12px">Puedes escribir la estatura como 178 cm o 1.78 m. El IMC se calcula automáticamente.</div><div class="row"><button class="primary" onclick="saveProgress()">Guardar medición</button></div>
       </div>
       <div id="progressList"></div>
     </div>
@@ -392,11 +392,16 @@ async function deleteRoutine(id){
 function progressNum(id){
   const el=$('#'+id); return el && el.value!=='' ? Number(el.value) : null;
 }
+function normalizedHeightCm(){
+  const h=progressNum('progressHeight');
+  if(!h) return null;
+  return h < 3 ? h*100 : h;
+}
 function calcBmiPreview(){
-  const w=progressNum('progressWeight'), h=progressNum('progressHeight');
+  const w=progressNum('progressWeight'), hCm=normalizedHeightCm();
   const out=$('#progressBmiPreview');
   if(!out)return;
-  out.value=(w&&h) ? (w/Math.pow(h/100,2)).toFixed(1) : '';
+  out.value=(w&&hCm) ? (w/Math.pow(hCm/100,2)).toFixed(2) : '';
 }
 document.addEventListener('input',e=>{
   if(e.target?.id==='progressWeight'||e.target?.id==='progressHeight') calcBmiPreview();
@@ -408,17 +413,17 @@ async function saveProgress(){
     member_id:CURRENT_MEMBER.id,
     record_date:$('#progressDate').value||new Date().toISOString().slice(0,10),
     weight_kg:progressNum('progressWeight'),
-    height_cm:progressNum('progressHeight'),
+    height_cm:normalizedHeightCm(),
     goal_weight_kg:progressNum('progressGoal'),
     ideal_weight_kg:progressNum('progressIdeal'),
-    body_fat_pct:progressNum('progressFat'),
+    body_fat_percent:progressNum('progressFat'),
     waist_cm:progressNum('progressWaist'),
     chest_cm:progressNum('progressChest'),
     arm_cm:progressNum('progressArm'),
     leg_cm:progressNum('progressLeg'),
-    goal_notes:$('#progressNotes').value.trim()||null
+    notes:$('#progressNotes').value.trim()||null
   };
-  if(!row.weight_kg && !row.height_cm && !row.goal_weight_kg && !row.body_fat_pct)
+  if(!row.weight_kg && !row.height_cm && !row.goal_weight_kg && !row.body_fat_percent)
     return alert('Captura por lo menos un dato de progreso.');
   const {error}=await sb.from('member_progress').insert(row);
   if(error)return alert('No se pudo guardar: '+error.message);
@@ -454,15 +459,15 @@ async function loadProgress(){
         <div><span class="muted">IMC</span><br><b>${bmi??'—'} ${bmi?'· '+bmiClass(bmi):''}</b></div>
         <div><span class="muted">Peso meta</span><br><b>${latest.goal_weight_kg??'—'} kg</b></div>
         <div><span class="muted">Peso ideal</span><br><b>${latest.ideal_weight_kg??'—'} kg</b></div>
-        <div><span class="muted">Grasa corporal</span><br><b>${latest.body_fat_pct??'—'}%</b></div>
+        <div><span class="muted">Grasa corporal</span><br><b>${latest.body_fat_percent??'—'}%</b></div>
       </div>
     </div>
     <div class="card innerCard" style="overflow-x:auto">
       <h3>Historial de mediciones</h3>
       <table><tr><th>Fecha</th><th>Peso</th><th>IMC</th><th>% grasa</th><th>Cintura</th><th>Pecho</th><th>Brazo</th><th>Pierna</th><th>Acción</th></tr>
-      ${rows.map(p=>{const b=p.bmi??((p.weight_kg&&p.height_cm)?(p.weight_kg/Math.pow(p.height_cm/100,2)).toFixed(1):'—');return `<tr><td>${p.record_date||''}</td><td>${p.weight_kg??'—'}</td><td>${b??'—'}</td><td>${p.body_fat_pct??'—'}</td><td>${p.waist_cm??'—'}</td><td>${p.chest_cm??'—'}</td><td>${p.arm_cm??'—'}</td><td>${p.leg_cm??'—'}</td><td><button class="danger" onclick="deleteProgress('${p.id}')">Eliminar</button></td></tr>`}).join('')}
+      ${rows.map(p=>{const b=p.bmi??((p.weight_kg&&p.height_cm)?(p.weight_kg/Math.pow(p.height_cm/100,2)).toFixed(1):'—');return `<tr><td>${p.record_date||''}</td><td>${p.weight_kg??'—'}</td><td>${b??'—'}</td><td>${p.body_fat_percent??'—'}</td><td>${p.waist_cm??'—'}</td><td>${p.chest_cm??'—'}</td><td>${p.arm_cm??'—'}</td><td>${p.leg_cm??'—'}</td><td><button class="danger" onclick="deleteProgress('${p.id}')">Eliminar</button></td></tr>`}).join('')}
       </table>
-      ${latest.goal_notes?`<p><b>Meta / observaciones:</b> ${escHtml(latest.goal_notes)}</p>`:''}
+      ${latest.notes?`<p><b>Meta / observaciones:</b> ${escHtml(latest.notes)}</p>`:''}
     </div>`;
 }
 
