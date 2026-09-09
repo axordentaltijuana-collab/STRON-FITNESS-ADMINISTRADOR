@@ -94,7 +94,39 @@ textarea{width:100%;min-height:90px;border-radius:10px;padding:11px;border:1px s
 <div class="row full"><button class="primary" onclick="createMember()">Guardar</button><button class="secondary" onclick="hideNew()">Cancelar</button></div>
 </div>
 </div>
+<div class="card" id="wodCard">
+  <div class="top">
+    <div>
+      <h2 style="margin:0">🔥 WOD del día</h2>
+      <p class="muted" style="margin:4px 0 0">Publica el entrenamiento para todos los socios.</p>
+    </div>
+  </div>
 
+  <div class="form" style="margin-top:14px">
+    <label>Fecha
+      <input id="wodDate" type="date">
+    </label>
+
+    <label>Título
+      <input id="wodTitle" placeholder="Ej. WOD Miércoles">
+    </label>
+
+    <label class="full">Entrenamiento
+      <textarea id="wodWorkout" rows="8" placeholder="Escribe aquí ejercicios, rondas, repeticiones, tiempos..."></textarea>
+    </label>
+
+    <label class="full">Indicaciones / notas
+      <textarea id="wodNotes" rows="3" placeholder="Opcional"></textarea>
+    </label>
+
+    <div class="full">
+      <button class="primary" onclick="saveWod()">Publicar WOD</button>
+    </div>
+  </div>
+
+  <div id="wodMsg" class="muted" style="margin-top:10px"></div>
+  <div id="wodWeek" style="margin-top:14px"></div>
+</div>
 <div class="card"><div class="top"><h3>Miembros</h3><button class="secondary" onclick="loadAll()">Actualizar</button></div><div id="members"></div></div>
 <div class="card"><h3>Pagos recientes</h3><div id="payments"></div></div>
 <div class="card"><h3>Asistencias recientes</h3><div id="checkins"></div></div>
@@ -626,6 +658,109 @@ async function loadFiles(){
     </div>`).join('') || '<div class="card muted">Sin fotos o archivos.</div>';
 }
 
-boot();
+boot();// ===== WOD DEL DIA / SEMANA =====
+function localDateISO(d = new Date()){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function escWod(v=''){
+  return String(v)
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'","&#039;");
+}
+
+function mondayOf(dateValue){
+  const d = new Date(dateValue + 'T12:00:00');
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1-day;
+  d.setDate(d.getDate()+diff);
+  return d;
+}
+
+async function loadWodWeek(){
+  const dateInput = document.querySelector('#wodDate');
+  if(!dateInput) return;
+
+  if(!dateInput.value) dateInput.value = localDateISO();
+
+  const monday = mondayOf(dateInput.value);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate()+6);
+
+  const from = localDateISO(monday);
+  const to = localDateISO(sunday);
+
+  const {data,error} = await sb
+    .from('daily_wods')
+    .select('*')
+    .gte('wod_date',from)
+    .lte('wod_date',to)
+    .order('wod_date',{ascending:true});
+
+  const box = document.querySelector('#wodWeek');
+  if(!box) return;
+
+  if(error){
+    box.innerHTML = `<div class="muted">${escWod(error.message)}</div>`;
+    return;
+  }
+
+  if(!data || !data.length){
+    box.innerHTML = '<div class="muted">Todavía no hay WOD publicados esta semana.</div>';
+    return;
+  }
+
+  box.innerHTML = '<h3>WOD de la semana</h3>' + data.map(w=>`
+    <div class="card innerCard">
+      <b>${escWod(w.wod_date)} · ${escWod(w.title)}</b>
+      <div style="white-space:pre-wrap;margin-top:8px">${escWod(w.workout)}</div>
+      ${w.notes ? `<div class="smallMuted" style="margin-top:8px">${escWod(w.notes)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function saveWod(){
+  const wod_date = document.querySelector('#wodDate').value;
+  const title = document.querySelector('#wodTitle').value.trim();
+  const workout = document.querySelector('#wodWorkout').value.trim();
+  const notes = document.querySelector('#wodNotes').value.trim();
+
+  if(!wod_date) return alert('Selecciona la fecha.');
+  if(!title) return alert('Escribe el título del WOD.');
+  if(!workout) return alert('Escribe el entrenamiento.');
+
+  const {error} = await sb
+    .from('daily_wods')
+    .upsert({
+      wod_date,
+      title,
+      workout,
+      notes: notes || null,
+      updated_at: new Date().toISOString()
+    },{onConflict:'wod_date'});
+
+  if(error){
+    alert('No se pudo publicar el WOD: ' + error.message);
+    return;
+  }
+
+  document.querySelector('#wodMsg').textContent = '✅ WOD publicado correctamente';
+  await loadWodWeek();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const d = document.querySelector('#wodDate');
+  if(d){
+    d.value = localDateISO();
+    d.addEventListener('change',loadWodWeek);
+    loadWodWeek();
+  }
+});
 </script>
 </body></html>
