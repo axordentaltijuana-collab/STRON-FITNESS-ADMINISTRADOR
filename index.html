@@ -717,12 +717,16 @@ async function loadWodWeek(){
   }
 
   box.innerHTML = '<h3>WOD de la semana</h3>' + data.map(w=>`
-    <div class="card innerCard">
-      <b>${escWod(w.wod_date)} · ${escWod(w.title)}</b>
-      <div style="white-space:pre-wrap;margin-top:8px">${escWod(w.workout)}</div>
-      ${w.notes ? `<div class="smallMuted" style="margin-top:8px">${escWod(w.notes)}</div>` : ''}
+  <div class="card innerCard">
+    <b>${escWod(w.wod_date)} · ${escWod(w.title)}</b>
+    <div style="white-space:pre-wrap;margin-top:8px">${escWod(w.workout)}</div>
+    ${w.notes ? `<div class="smallMuted" style="margin-top:8px">${escWod(w.notes)}</div>` : ''}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="secondary" onclick="editWod('${w.id}')">✏️ Editar</button>
+      <button class="danger" onclick="deleteWod('${w.id}')">🗑️ Eliminar</button>
     </div>
-  `).join('');
+  </div>
+`).join('');
 }
 
 async function saveWod(){
@@ -753,7 +757,45 @@ async function saveWod(){
   document.querySelector('#wodMsg').textContent = '✅ WOD publicado correctamente';
   await loadWodWeek();
 }
+async function editWod(id){
+  const {data,error} = await sb
+    .from('daily_wods')
+    .select('*')
+    .eq('id',id)
+    .single();
 
+  if(error || !data){
+    alert('No se pudo cargar el WOD.');
+    return;
+  }
+
+  document.querySelector('#wodDate').value = data.wod_date || '';
+  document.querySelector('#wodTitle').value = data.title || '';
+  document.querySelector('#wodWorkout').value = data.workout || '';
+  document.querySelector('#wodNotes').value = data.notes || '';
+
+  document.querySelector('#wodCard').scrollIntoView({
+    behavior:'smooth'
+  });
+}
+
+async function deleteWod(id){
+  const confirmar = confirm('¿Seguro que deseas eliminar este WOD?');
+  if(!confirmar) return;
+
+  const {error} = await sb
+    .from('daily_wods')
+    .delete()
+    .eq('id',id);
+
+  if(error){
+    alert('No se pudo eliminar el WOD: ' + error.message);
+    return;
+  }
+
+  document.querySelector('#wodMsg').textContent = '✅ WOD eliminado correctamente';
+  await loadWodWeek();
+}
 document.addEventListener('DOMContentLoaded',()=>{
   const d = document.querySelector('#wodDate');
   if(d){
